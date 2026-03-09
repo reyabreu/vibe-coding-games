@@ -46,16 +46,17 @@ def _make_gear_sprite(size: int = 48) -> pygame.Surface:
     return surf
 
 
-def _make_winner_sprite(title_text: str) -> pygame.Surface:
+def _make_winner_sprite(title_text: str, line2: str = "") -> pygame.Surface:
     """Generate an 800x480 winner overlay matching the greyscale style of over.png.
 
     Brightest text colour sampled from over.png: ~(195, 195, 195).
-    No subtitle text, keeping it consistent with the Game Over sprite.
+    Optional *line2* is rendered centred on a second line below the title.
     """
     COL_TEXT   = (195, 195, 195)
     COL_SHADOW = ( 28,  28,  28)
     COL_RULE   = (130, 130, 130)
     COL_RAYS   = ( 65,  65,  65)
+    LINE_GAP   = 8       # pixels between the two text lines
 
     surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
@@ -83,18 +84,38 @@ def _make_winner_sprite(title_text: str) -> pygame.Surface:
     title    = big_font.render(title_text, True, COL_TEXT)
     shadow   = big_font.render(title_text, True, COL_SHADOW)
 
-    tx = cx - title.get_width() // 2
-    ty = cy - title.get_height() // 2
-    surf.blit(shadow, (tx + 4, ty + 4))
-    surf.blit(title,  (tx, ty))
-
-    # Decorative rules
-    lx = tx - 16
-    lw = title.get_width() + 32
-    pygame.draw.line(surf, (*COL_RULE, 210), (lx, ty - 12),
-                     (lx + lw, ty - 12), 2)
-    pygame.draw.line(surf, (*COL_RULE, 210), (lx, ty + title.get_height() + 8),
-                     (lx + lw, ty + title.get_height() + 8), 2)
+    if line2:
+        sub      = big_font.render(line2, True, COL_TEXT)
+        sub_shad = big_font.render(line2, True, COL_SHADOW)
+        block_h  = title.get_height() + LINE_GAP + sub.get_height()
+        ty       = cy - block_h // 2
+        # line 1
+        tx = cx - title.get_width() // 2
+        surf.blit(shadow, (tx + 4, ty + 4))
+        surf.blit(title,  (tx, ty))
+        # line 2
+        sy = ty + title.get_height() + LINE_GAP
+        sx = cx - sub.get_width() // 2
+        surf.blit(sub_shad, (sx + 4, sy + 4))
+        surf.blit(sub,      (sx, sy))
+        # decorative rules span the wider of the two lines
+        rule_w = max(title.get_width(), sub.get_width()) + 32
+        lx     = cx - rule_w // 2
+        pygame.draw.line(surf, (*COL_RULE, 210), (lx, ty - 12),
+                         (lx + rule_w, ty - 12), 2)
+        pygame.draw.line(surf, (*COL_RULE, 210), (lx, sy + sub.get_height() + 8),
+                         (lx + rule_w, sy + sub.get_height() + 8), 2)
+    else:
+        tx = cx - title.get_width() // 2
+        ty = cy - title.get_height() // 2
+        surf.blit(shadow, (tx + 4, ty + 4))
+        surf.blit(title,  (tx, ty))
+        lx = tx - 16
+        lw = title.get_width() + 32
+        pygame.draw.line(surf, (*COL_RULE, 210), (lx, ty - 12),
+                         (lx + lw, ty - 12), 2)
+        pygame.draw.line(surf, (*COL_RULE, 210), (lx, ty + title.get_height() + 8),
+                         (lx + lw, ty + title.get_height() + 8), 2)
     return surf
 
 
@@ -112,10 +133,10 @@ def load_assets() -> None:
     for name in img_names:
         images[name] = pygame.image.load(f"images/{name}.png").convert_alpha()
 
-    images["settings"]   = _make_gear_sprite(48)
-    images["you_won"]    = _make_winner_sprite("YOU WON!")
-    images["player1_won"] = _make_winner_sprite("PLAYER 1 WON!")
-    images["player2_won"] = _make_winner_sprite("PLAYER 2 WON!")
+    images["settings"]    = _make_gear_sprite(48)
+    images["you_won"]     = _make_winner_sprite("YOU WON!")
+    images["player1_won"] = _make_winner_sprite("PLAYER 1", "WON!")
+    images["player2_won"] = _make_winner_sprite("PLAYER 2", "WON!")
 
     if not pygame.mixer.get_init():
         return
