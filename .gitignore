@@ -16,6 +16,7 @@ build/
 
 # Runtime generated files
 settings.json
+winners.json
 
 # Backup files
 *.bak

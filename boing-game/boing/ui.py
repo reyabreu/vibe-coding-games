@@ -22,6 +22,8 @@ class State(Enum):
     GAME_OVER  = 3
     SETTINGS   = 4
     COUNTDOWN  = 5
+    NAME_ENTRY = 6   # player types name after beating AI
+    WINNERS    = 7   # Hall of Fame table
 
 
 # ---------------------------------------------------------------------------
@@ -139,3 +141,112 @@ def draw_settings_screen(
         True, (120, 120, 165),
     )
     surface.blit(hint, (_PNL_X + (_PNL_W - hint.get_width()) // 2, _PNL_Y + _PNL_H - 28))
+
+
+# ---------------------------------------------------------------------------
+# Name-entry overlay  (shown after human beats AI)
+# ---------------------------------------------------------------------------
+_NE_W, _NE_H = 440, 155
+_NE_X = (WIDTH  - _NE_W) // 2
+_NE_Y = (HEIGHT - _NE_H) // 2
+
+
+def draw_name_entry(
+    surface: pygame.Surface,
+    font_big: pygame.font.Font,
+    font_mid: pygame.font.Font,
+    font_small: pygame.font.Font,
+    current_text: str,
+    show_cursor: bool,
+) -> None:
+    """Draw a name-entry panel centred on screen."""
+    panel = pygame.Surface((_NE_W, _NE_H), pygame.SRCALPHA)
+    panel.fill((18, 18, 55, 245))
+    pygame.draw.rect(panel, (90, 90, 200), panel.get_rect(), 2, border_radius=10)
+    surface.blit(panel, (_NE_X, _NE_Y))
+
+    title = font_big.render("ENTER YOUR NAME", True, (190, 190, 255))
+    surface.blit(title, (_NE_X + (_NE_W - title.get_width()) // 2, _NE_Y + 14))
+
+    # Input box
+    box_x, box_y, box_w, box_h = _NE_X + 20, _NE_Y + 62, _NE_W - 40, 38
+    box_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+    box_surf.fill((35, 35, 75, 200))
+    pygame.draw.rect(box_surf, (140, 140, 255), box_surf.get_rect(), 1, border_radius=5)
+    surface.blit(box_surf, (box_x, box_y))
+
+    cursor    = "_" if show_cursor else " "
+    text_surf = font_mid.render(current_text + cursor, True, (255, 255, 255))
+    surface.blit(text_surf, (box_x + 10, box_y + (box_h - text_surf.get_height()) // 2))
+
+    hint = font_small.render("ENTER  save        ESC  skip", True, (120, 120, 165))
+    surface.blit(hint, (_NE_X + (_NE_W - hint.get_width()) // 2, _NE_Y + _NE_H - 24))
+
+
+# ---------------------------------------------------------------------------
+# Hall of Fame screen
+# ---------------------------------------------------------------------------
+_WN_W, _WN_H = 560, 310
+_WN_X = (WIDTH  - _WN_W) // 2
+_WN_Y = (HEIGHT - _WN_H) // 2
+
+_RANK_COLS = [
+    (255, 215,  60),   # 1st – gold
+    (192, 192, 192),   # 2nd – silver
+    (205, 127,  50),   # 3rd – bronze
+    (175, 175, 175),   # 4th
+    (175, 175, 175),   # 5th
+]
+
+
+def draw_winners_screen(
+    surface: pygame.Surface,
+    font_big: pygame.font.Font,
+    font_mid: pygame.font.Font,
+    font_small: pygame.font.Font,
+    entries: list[dict],
+) -> None:
+    """Draw the Hall of Fame overlay."""
+    dim = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    dim.fill((0, 0, 0, 175))
+    surface.blit(dim, (0, 0))
+
+    panel = pygame.Surface((_WN_W, _WN_H), pygame.SRCALPHA)
+    panel.fill((18, 18, 55, 235))
+    pygame.draw.rect(panel, (90, 90, 200), panel.get_rect(), 2, border_radius=10)
+    surface.blit(panel, (_WN_X, _WN_Y))
+
+    title_surf = font_big.render("\u2605  HALL OF FAME  \u2605", True, (255, 215, 60))
+    surface.blit(title_surf, (_WN_X + (_WN_W - title_surf.get_width()) // 2, _WN_Y + 14))
+
+    # Column x positions
+    col_rank = _WN_X + 28
+    col_name = _WN_X + 78
+    col_date = _WN_X + 268
+    col_diff = _WN_X + 420
+
+    # Header row
+    header_y = _WN_Y + 58
+    hdr_col  = (140, 140, 220)
+    for text, x in [("#", col_rank), ("NAME", col_name), ("DATE", col_date), ("DIFFICULTY", col_diff)]:
+        surface.blit(font_small.render(text, True, hdr_col), (x, header_y))
+    pygame.draw.line(surface, (80, 80, 160),
+                     (_WN_X + 20, header_y + 20), (_WN_X + _WN_W - 20, header_y + 20), 1)
+
+    if not entries:
+        msg = font_mid.render("No winners yet — beat the AI!", True, (130, 130, 170))
+        surface.blit(msg, (_WN_X + (_WN_W - msg.get_width()) // 2, _WN_Y + 140))
+    else:
+        for i, entry in enumerate(entries):
+            ry    = header_y + 28 + i * 34
+            col   = _RANK_COLS[i] if i < len(_RANK_COLS) else (175, 175, 175)
+            row_bg = pygame.Surface((_WN_W - 40, 30), pygame.SRCALPHA)
+            row_bg.fill((50, 50, 100, 120) if i % 2 == 0 else (35, 35, 75, 80))
+            surface.blit(row_bg, (_WN_X + 20, ry - 2))
+            surface.blit(font_mid.render(str(i + 1),               True, col),              (col_rank, ry))
+            surface.blit(font_mid.render(entry.get("name",  "?"), True, col),              (col_name, ry))
+            surface.blit(font_mid.render(entry.get("date",  ""),  True, (175, 175, 200)), (col_date, ry))
+            surface.blit(font_mid.render(entry.get("difficulty", ""), True, (175, 175, 200)), (col_diff, ry))
+
+    hint = font_small.render("SPACE / ESC  back", True, (120, 120, 165))
+    surface.blit(hint, (_WN_X + (_WN_W - hint.get_width()) // 2, _WN_Y + _WN_H - 26))

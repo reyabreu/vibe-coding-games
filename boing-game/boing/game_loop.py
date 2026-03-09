@@ -10,11 +10,14 @@ from boing.constants import WIDTH, HEIGHT, TITLE, FPS, SCORE_OPTIONS, DIFFICULTY
 from boing.controls import p1_controls, p2_controls
 from boing.entities import Game
 from boing.helpers import play_sound
+from boing.leaderboard import load_winners, add_winner, winners
 from boing.settings import load_settings, save_settings, settings
 from boing.ui import (
     State,
     draw_countdown,
+    draw_name_entry,
     draw_settings_screen,
+    draw_winners_screen,
     _CD_TOTAL,
 )
 
@@ -32,6 +35,7 @@ def main() -> None:
         pass
 
     load_settings()
+    load_winners()
     load_assets()
 
     try:
@@ -51,6 +55,7 @@ def main() -> None:
     game             = Game()  # attract-mode: both paddles are AI
     game_result      = "over"  # "over" | "you_won" | "player1_won" | "player2_won"
     countdown_ticks  = 0
+    name_entry_text  = ""     # text typed during NAME_ENTRY state
 
     prev_keys = pygame.key.get_pressed()
 
@@ -61,14 +66,20 @@ def main() -> None:
         def just_pressed(key: int) -> bool:
             return bool(assets.current_keys[key]) and not bool(prev_keys[key])
 
+        keydown_events: list[pygame.event.Event] = []
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.KEYDOWN:
+                keydown_events.append(event)
 
-        # ESC on menu = quit; ESC anywhere else = back to menu
+        # ESC behaviour depends on state
         if just_pressed(pygame.K_ESCAPE):
             if state == State.MENU:
                 running = False
+            elif state == State.NAME_ENTRY:
+                # skip name entry — go straight to the game-over overlay
+                state = State.GAME_OVER
             else:
                 state = State.MENU
                 game  = Game()
@@ -91,6 +102,8 @@ def main() -> None:
             elif just_pressed(pygame.K_o):
                 settings_row = 0
                 state = State.SETTINGS
+            elif just_pressed(pygame.K_h):
+                state = State.WINNERS
             else:
                 if just_pressed(pygame.K_UP) and num_players == 2:
                     play_sound("up", 1, is_menu=True)
@@ -135,9 +148,24 @@ def main() -> None:
                         pygame.mixer.music.play(0)
                     except Exception:
                         pass
-                state = State.GAME_OVER
+                    name_entry_text = ""
+                    state = State.NAME_ENTRY
+                else:
+                    state = State.GAME_OVER
             else:
                 game.update()
+
+        elif state == State.NAME_ENTRY:
+            for ev in keydown_events:
+                if ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    if name_entry_text.strip():
+                        add_winner(name_entry_text.strip(), settings["difficulty_idx"])
+                    state = State.GAME_OVER
+                elif ev.key == pygame.K_BACKSPACE:
+                    name_entry_text = name_entry_text[:-1]
+                elif (ev.unicode and ev.unicode.isprintable()
+                      and len(name_entry_text) < 12):
+                    name_entry_text += ev.unicode
 
         elif state == State.GAME_OVER:
             if just_pressed(pygame.K_SPACE):
@@ -181,6 +209,10 @@ def main() -> None:
                 save_settings()
                 play_sound("down", 1, is_menu=True)
 
+        elif state == State.WINNERS:
+            if just_pressed(pygame.K_SPACE):
+                state = State.MENU
+
         # ---- Draw ----------------------------------------------------------
         game.draw(screen)
 
@@ -190,9 +222,19 @@ def main() -> None:
             gx = WIDTH  - gear.get_width()  - 12
             gy = HEIGHT - gear.get_height() - 10
             screen.blit(gear, (gx, gy))
-            hint = font_small.render("O = Settings", True, (170, 170, 170))
-            screen.blit(hint, (gx - hint.get_width() - 8,
-                               gy + (gear.get_height() - hint.get_height()) // 2))
+            # Two-line hint right-aligned next to the gear
+            hint1   = font_small.render("O = Settings",     True, (170, 170, 170))
+            hint2   = font_small.render("H = Hall of Fame", True, (170, 170, 170))
+            line_h  = hint1.get_height() + 3
+            base_y  = gy + (gear.get_height() - line_h * 2) // 2
+            screen.blit(hint1, (gx - hint1.get_width() - 8, base_y))
+            screen.blit(hint2, (gx - hint2.get_width() - 8, base_y + line_h))
+
+        elif state == State.NAME_ENTRY:
+            screen.blit(images["you_won"], (0, 0))
+            show_cursor = (pygame.time.get_ticks() // 500) % 2 == 0
+            draw_name_entry(screen, font_big, font_mid, font_small,
+                            name_entry_text, show_cursor)
 
         elif state == State.GAME_OVER:
             screen.blit(images[game_result], (0, 0))
@@ -202,6 +244,9 @@ def main() -> None:
 
         elif state == State.COUNTDOWN:
             draw_countdown(screen, countdown_ticks)
+
+        elif state == State.WINNERS:
+            draw_winners_screen(screen, font_big, font_mid, font_small, winners)
 
         pygame.display.flip()
         clock.tick(FPS)
