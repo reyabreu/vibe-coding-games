@@ -11,6 +11,7 @@ All games use **[pygame-ce](https://pyga.me/)** (the community edition of pygame
 | Folder | Game | Description |
 |--------|------|-------------|
 | [`boing-game/`](boing-game/) | **Boing!** | A Pong-style game with sprite rendering, AI opponent, animated countdown, settings persistence, and victory music. |
+| [`chicken-game/`](chicken-game/) | **Chicken Crossing!** | A Frogger-style game where a chicken dodges traffic and rides logs across a river. _(in development)_ |
 
 ---
 
@@ -32,7 +33,7 @@ The result is fast prototyping without sacrificing quality, since refactoring an
 ### Project structure
 Each game lives in its own subfolder (e.g. `snake-game/`, `asteroids-game/`). Inside, follow the same proven layout used in `boing-game/`:
 
-```
+```u
 my-game/
     main.py              ← thin entry point (< 10 lines)
     pyproject.toml       ← uv/pip metadata and dependencies
